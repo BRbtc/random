@@ -1,0 +1,45 @@
+const fs = require('fs');
+const web3 = require('@solana/web3.js'); // Make sure this is defined
+
+// ADD YOUR OWN QUICKNODE RPC HERE
+const solana = new web3.Connection('https://dwadwa-dawdwa-dwadwa.solana-mainnet.quiknode.pro/23098790adawij10-9');
+
+async function fetchAndSaveLeaderSchedule() {
+  // Fetch the leader schedule from the Solana network
+  const leaderSchedule = await solana.getLeaderSchedule();
+  
+  // Save the fetched leader schedule to hashtesting.json
+  fs.writeFileSync('hashtesting.json', JSON.stringify(leaderSchedule, null, 2));
+  console.log('Leader schedule has been saved to hashtesting.json');
+}
+
+async function enhanceLeaderScheduleWithEpochInfo() {
+  // Fetch epoch information
+  const epochInfo = await solana.getEpochInfo();
+  const firstSlotInEpoch = epochInfo.absoluteSlot - epochInfo.slotIndex;
+
+  // Assuming the leader schedule has already been saved and will be read from hashtesting.json
+  const leaderScheduleData = JSON.parse(fs.readFileSync('hashtesting.json', 'utf8'));
+
+  // Enhance the leader schedule data with absolute slot numbers
+  let enhancedData = [];
+  for (const [leader, slots] of Object.entries(leaderScheduleData)) {
+    slots.forEach(slot => {
+      const absoluteSlot = firstSlotInEpoch + slot;
+      enhancedData.push({ slot, absoluteSlot, leader });
+    });
+  }
+
+  // Sort by absoluteSlot just in case
+  enhancedData.sort((a, b) => a.absoluteSlot - b.absoluteSlot);
+
+  // Save the enhanced data back to hashtestingE.json
+  fs.writeFileSync('hashtestingE.json', JSON.stringify(enhancedData, null, 2), 'utf8');
+  console.log('Leader schedule enhanced with absoluteSlot and saved to hashtestingE.json');
+}
+
+// Run the functions in sequence
+(async () => {
+  await fetchAndSaveLeaderSchedule();
+  await enhanceLeaderScheduleWithEpochInfo();
+})();
