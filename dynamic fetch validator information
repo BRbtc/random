@@ -1,0 +1,94 @@
+//input your api key into line 12
+
+//npm install node-fetch delay
+//node filename.mjs
+
+//will take a while
+
+
+
+import fetch from 'node-fetch';
+import fs from 'fs/promises';
+import delay from 'delay';
+
+const API_KEY = 'insert api key';
+const BASE_URL = 'https://api.solanabeach.io/v1';
+
+async function fetchAllValidators() {
+    const url = `${BASE_URL}/validators/all`;
+    const headers = {
+        'Accept': 'application/json',
+        'Authorization': API_KEY
+    };
+
+    try {
+        const response = await fetch(url, { headers });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const creditsRemaining = response.headers.get('Solana-Beach-Standard-Credits-Remaining');
+        if (creditsRemaining <= 1) {
+            console.log('Low on credits, pausing until they replenish...');
+            await delay(10000);  // Delay for 10 seconds
+        }
+        console.log('Fetched list of all validators.');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching validators:', error.message);
+        return [];
+    }
+}
+
+async function fetchValidatorInformation(votePubkey) {
+    const url = `${BASE_URL}/validator/${votePubkey}`;
+    const headers = {
+        'Accept': 'application/json',
+        'Authorization': API_KEY
+    };
+
+    try {
+        const response = await fetch(url, { headers });
+        const creditsRemaining = response.headers.get('Solana-Beach-Standard-Credits-Remaining');
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();  // Get the JSON response body
+
+        if (creditsRemaining <= 1) {
+            console.log('Low on credits, pausing until they replenish...');
+            await delay(10000);  // Delay for 10 seconds
+        }
+
+        console.log(`Retrieved information for validator ${votePubkey}:`);
+        //console.log(`Moniker: ${data.validator.moniker}, Location: ${data.validator.location.country}, Last Vote: ${data.validator.lastVote}`);
+
+        return data;
+    } catch (error) {
+        console.log(`Error fetching data for ${votePubkey}: ${error.message}`);
+        return null;  // Return null on error to handle it in the calling function
+    }
+}
+
+async function saveJSONToFile(filePath, data) {
+    try {
+        await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+        console.log(`Data saved to ${filePath}`);
+    } catch (error) {
+        console.error(`Error writing to file ${filePath}:`, error);
+    }
+}
+
+(async () => {
+    const validators = await fetchAllValidators();
+    const results = [];
+
+    for (const validator of validators) {
+        const info = await fetchValidatorInformation(validator.votePubkey);
+        if (info) {
+            results.push(info);
+        }
+    }
+
+    await saveJSONToFile('validators.json', results);
+})();
